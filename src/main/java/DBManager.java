@@ -44,17 +44,4 @@ public class DBManager {
     public void updateDB(Place place) {
         placeTypeMap.get(place.getType()).add(place);
     }
-
-    static class ThereIsNotSuchPlaceTypeException extends Exception {
-        ThereIsNotSuchPlaceTypeException() {
-            System.out.println("There isn't such type of place");
-        }
-    }
-
-    static class ThereIsNotPlacesInThisAreaException extends Exception {
-        ThereIsNotPlacesInThisAreaException() {
-            System.out.println("There is no places in this area");
-        }
-    }
-
 }
