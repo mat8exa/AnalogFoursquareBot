@@ -15,7 +15,6 @@ public interface Constants {
     }
 
     String[] startKeyboardWords = new String[]{
-            "/start",
             "add place",
             "add comment",
             "find nearby",
@@ -28,8 +27,9 @@ public interface Constants {
             "bar",
             "restaurant",
             "bank",
-            "shops",
-            "business_center"
+            "shop",
+            "business_center",
+            "back"
     };
 
     String[] addingKeyboardWords = new String[]{

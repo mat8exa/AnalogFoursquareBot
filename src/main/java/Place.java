@@ -14,7 +14,13 @@ public class Place implements Serializable {
     //private String description;
     private String name;
 
-    Place() { }
+    Place() {
+    }
+    Place(PlaceType type, String name, Location location) {
+        this.type = type;
+        this.name = name;
+        this.location = location;
+    }
 
     public void setName(String name) {
         this.name = name;
@@ -24,9 +30,7 @@ public class Place implements Serializable {
         this.description = description;
     }*/
 
-    public void setLocation(Location location) {
-        this.location = location;
-    }
+    public void setLocation(Location location) { this.location = location; }
 
     public void setType(PlaceType type) {
         this.type = type;

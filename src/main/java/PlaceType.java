@@ -6,6 +6,6 @@ public enum PlaceType {
     BANK;
 
     public static String[] toStringArray() {
-        return new String[]{"shop", "restaurant", "bar", "business_center", "bank"};
+        return new String[]{"shop", "restaurant", "bar", "business_center", "bank", "back"};
     }
 }

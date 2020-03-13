@@ -3,6 +3,7 @@ import org.telegram.abilitybots.api.db.DBContext;
 import org.telegram.abilitybots.api.objects.*;
 import org.telegram.abilitybots.api.sender.SilentSender;
 import org.telegram.abilitybots.api.util.AbilityExtension;
+import org.telegram.telegrambots.meta.api.methods.send.SendLocation;
 import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -13,11 +14,9 @@ import java.util.Map;
 
 public class MyAbilityExtension implements AbilityExtension {
     private SilentSender silent;
-    private DBContext db;
     private DBManager dbManager;
     public class Interaction {
         private String action;
-        private Place newPlace;
         private PlaceType type;
         private String name;
         private Location location;
@@ -26,9 +25,8 @@ public class MyAbilityExtension implements AbilityExtension {
 
         public void cleanInteraction () {
             action = null;
-            newPlace = null;
             type = null;
-            name = null;
+            name = "";
             location = null;
         }
     }
@@ -37,7 +35,6 @@ public class MyAbilityExtension implements AbilityExtension {
 
     public MyAbilityExtension(SilentSender silent, DBContext db) {
         this.silent = silent;
-        this.db = db;
         dbManager = new DBManager(db);
     }
 
@@ -66,8 +63,7 @@ public class MyAbilityExtension implements AbilityExtension {
                     break;
                 case ("add place"):
                     interaction.action = "add place";
-                    interaction.newPlace = new Place();
-                    silent.execute(Keyboard.addKeyboard(PlaceType.toStringArray(),
+                    silent.execute(Keyboard.addKeyboard(PlaceType.toStringArray() ,
                             update, "Choose type:"));
                     break;
                 case ("filter by type"):
@@ -75,8 +71,10 @@ public class MyAbilityExtension implements AbilityExtension {
                     break;
                 case ("find nearby"):
                     interaction.action = "find nearby";
+                    silent.send("Send your location with a point on map", update.getMessage().getChatId());
                     break;
             }
+            interactionMap.put(update.getMessage().getChatId(), interaction);
         }, update -> Arrays.asList(Constants.startKeyboardWords).contains(update.getMessage().getText()));
     }
 
@@ -88,14 +86,17 @@ public class MyAbilityExtension implements AbilityExtension {
                 .privacy(Privacy.PUBLIC)
                 .action(ctx -> {
                     Interaction interaction = interactionMap.get(ctx.chatId());
-                    interaction.name = ctx.update().getMessage().getText();
+                    interaction.name="";
+                    for (int i = 0; i < ctx.arguments().length; i++){
+                        interaction.name += ctx.arguments()[i]+" ";
+                    }
                     if (interaction.action.equalsIgnoreCase("add place")) {
-                        interaction.newPlace.setName(interactionMap.get(ctx.chatId()).name);
-                        if (interaction.newPlace.getLocation() != null
-                                && interaction.newPlace.getType() != null) {
-                            dbManager.updateDB(interaction.newPlace);
-                            silent.send("New places was successfully added", ctx.chatId());
+                        silent.send("Send a location of the place with a point on map", ctx.chatId());
+                        if (interaction.location != null && interaction.type != null) {
+                            dbManager.updateDB(new Place(interaction.type, interaction.name, interaction.location));
+                            silent.send("New places was successfully added! :)", ctx.chatId());
                             interaction.cleanInteraction();
+                            interactionMap.put(ctx.chatId(), interaction);
                         }
                     }
                 })
@@ -107,20 +108,25 @@ public class MyAbilityExtension implements AbilityExtension {
             Interaction interaction = interactionMap.get(update.getMessage().getChatId());
             interaction.location = update.getMessage().getLocation();
             if (interaction.action.equalsIgnoreCase("add place")) {
-                interaction.newPlace.setLocation(interactionMap.get(update.getMessage().getChatId()).location);
-                if (interaction.newPlace.getName() != null && interaction.newPlace.getType() != null) {
-                    dbManager.updateDB(interaction.newPlace);
-                    silent.send("New places was successfully added", update.getMessage().getChatId());
+                interactionMap.put(update.getMessage().getChatId(), interaction);
+                if (interaction.name != null && interaction.type != null) {
+                    dbManager.updateDB(new Place(interaction.type, interaction.name, interaction.location));
+                    silent.send("New places was successfully added! :)", update.getMessage().getChatId());
                     interaction.cleanInteraction();
+                    interactionMap.put(update.getMessage().getChatId(), interaction);
                 }
             } else if (interaction.action.equalsIgnoreCase("find nearby")) {
                 try {
-                    silent.send("Places in this area:", update.getMessage().getChatId());
-                    for (Place currentPlace : dbManager.searchByLocation(interaction.location,3000)) {
-                        String message = currentPlace.getName() + "\n" + currentPlace.getType().toString() + "\n";
-                        silent.send(message + currentPlace.getLocation(), update.getMessage().getChatId());
-                        interaction.location = null;
+                    silent.send("3 nearest places in this area:", update.getMessage().getChatId());
+                    for (Place currentPlace : dbManager.searchByLocation(interaction.location)) {
+                        String message = currentPlace.getName() + "\n" + currentPlace.getType().name();
+                        silent.send(message, update.getMessage().getChatId());
+                        SendLocation sendLocation = new SendLocation().setLatitude(currentPlace.getLocation().getLatitude());
+                        sendLocation.setLongitude(currentPlace.getLocation().getLongitude());
+                        silent.execute(sendLocation.setChatId(update.getMessage().getChatId()));
                     }
+                    interaction.location = null;
+                    interactionMap.put(update.getMessage().getChatId(), interaction);
                 } catch (ThereIsNotPlacesInThisAreaException e) {
                     silent.send("There're no added places in this area", update.getMessage().getChatId());
                     e.printStackTrace();
@@ -149,13 +155,19 @@ public class MyAbilityExtension implements AbilityExtension {
                 case ("bank"):
                     interaction.type = PlaceType.BANK;
                     break;
+                case ("back"):
+                    silent.execute(Keyboard.addKeyboard(new String[]{"add place", "add comment",
+                            "filter by type", "find nearby"}, update, "Chose action:"));
             }
+            interactionMap.put(update.getMessage().getChatId(), interaction);
             if (interaction.action.equalsIgnoreCase("add place")) {
-                interaction.newPlace.setType(interaction.type);
-                if (interaction.newPlace.getName() != null && interaction.newPlace.getLocation() != null) {
-                    dbManager.updateDB(interaction.newPlace);
+                interactionMap.put(update.getMessage().getChatId(), interaction);
+                silent.send("Send name of the place with /name + it's name", update.getMessage().getChatId());
+                if (interaction.name != null && interaction.location != null) {
+                    dbManager.updateDB(new Place(interaction.type, interaction.name, interaction.location));
                     silent.send("New places was successfully added", update.getMessage().getChatId());
                     interaction.cleanInteraction();
+                    interactionMap.put(update.getMessage().getChatId(), interaction);
                 }
             } else if (interaction.action.equalsIgnoreCase("find by type")) {
                 try {
