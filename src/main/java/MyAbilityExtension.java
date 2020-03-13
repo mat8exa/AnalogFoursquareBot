@@ -132,6 +132,8 @@ public class MyAbilityExtension implements AbilityExtension {
                     e.printStackTrace();
                 }
             }
+            silent.execute(Keyboard.addKeyboard(new String[]{"add place", "add comment",
+                            "filter by type", "find nearby"}, ctx.update(), "Chose action:"));
         }, Flag.LOCATION);
     }
 
